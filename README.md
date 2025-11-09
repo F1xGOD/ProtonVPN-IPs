@@ -164,6 +164,16 @@ The workflow automatically refreshes tokens when needed and updates repository s
 
 To export ALL ProtonVPN server IPs, you need to extract authentication tokens from your ProtonVPN account. Follow these steps:
 
+#### Quick Reference Summary
+
+| Secret | Source | Where to Find | Required |
+|--------|--------|---------------|----------|
+| `AUTH_PM_UID` | ProtonVPN Browser Session | Extract from cookie name `AUTH-{uid}` or `x-pm-uid` header | ✅ Yes |
+| `AUTH_TOKEN` | ProtonVPN Browser Session | Cookie value for `AUTH-{uid}` | ✅ Yes |
+| `REFRESH_TOKEN` | ProtonVPN Browser Session | Cookie value for `REFRESH-{uid}` | ✅ Yes |
+| `SESSION_ID` | ProtonVPN Browser Session | Cookie value for `Session-Id` | ✅ Yes |
+| `GH_TOKEN` | GitHub Settings | Personal Access Token (Fine-grained) | ✅ Yes |
+
 #### Step 1: Get ProtonVPN Authentication Tokens
 
 1. **Open Your Browser**: Use a browser with developer tools (Chrome, Firefox, Edge, etc.)
