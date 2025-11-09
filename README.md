@@ -152,13 +152,15 @@ The project uses Proton API authentication tokens to fetch VPN server data. It n
 
 For GitHub Actions to work properly, set the following repository secrets:
 
-- `AUTH_PM_UID`: Your Proton account UID (not changed by token refresh)
-- `AUTH_TOKEN`: Initial authentication token
-- `REFRESH_TOKEN`: Token used to refresh authentication credentials
-- `SESSION_ID`: Your session ID
-- `GH_TOKEN`: GitHub fine grained token with `Secrets: Read and Write` and `Contents: Read and Write` permissions used to update repository secrets
+- `AUTH_PM_UID`: Your Proton account UID (not changed by token refresh) - **Required**
+- `AUTH_TOKEN`: Initial authentication token - **Required**
+- `REFRESH_TOKEN`: Token used to refresh authentication credentials - **Optional but recommended**
+- `SESSION_ID`: Your session ID - **Required**
+- `GH_TOKEN`: GitHub fine grained token with `Secrets: Read and Write` and `Contents: Read and Write` permissions used to update repository secrets - **Required**
 
-The workflow automatically refreshes tokens when needed and updates repository secrets accordingly.
+**Note about REFRESH_TOKEN**: While optional, using `REFRESH_TOKEN` enables automatic token refresh, preventing frequent manual token updates. Without it, `AUTH_TOKEN` and `SESSION_ID` will expire after a few hours/days, requiring manual renewal.
+
+The workflow automatically refreshes tokens when needed (if `REFRESH_TOKEN` is provided) and updates repository secrets accordingly.
 
 ### How to Obtain Authentication Secrets
 
@@ -170,9 +172,11 @@ To export ALL ProtonVPN server IPs, you need to extract authentication tokens fr
 |--------|--------|---------------|----------|
 | `AUTH_PM_UID` | ProtonVPN Browser Session | Extract from cookie name `AUTH-{uid}` or `x-pm-uid` header | ✅ Yes |
 | `AUTH_TOKEN` | ProtonVPN Browser Session | Cookie value for `AUTH-{uid}` | ✅ Yes |
-| `REFRESH_TOKEN` | ProtonVPN Browser Session | Cookie value for `REFRESH-{uid}` | ✅ Yes |
+| `REFRESH_TOKEN` | ProtonVPN Browser Session | Cookie value for `REFRESH-{uid}` | ⚠️ Optional* |
 | `SESSION_ID` | ProtonVPN Browser Session | Cookie value for `Session-Id` | ✅ Yes |
 | `GH_TOKEN` | GitHub Settings | Personal Access Token (Fine-grained) | ✅ Yes |
+
+**\*Note**: `REFRESH_TOKEN` is optional but highly recommended. Without it, you'll need to manually update `AUTH_TOKEN` and `SESSION_ID` more frequently (every few hours/days).
 
 #### Step 1: Get ProtonVPN Authentication Tokens
 
@@ -211,6 +215,10 @@ To export ALL ProtonVPN server IPs, you need to extract authentication tokens fr
      Your `AUTH_TOKEN` is `eyJhbGc...rest_of_token`
    
    - **REFRESH_TOKEN**: From the Cookie header, find `REFRESH-{uid}={refresh_token_value}`. Copy the `{refresh_token_value}` part.
+     - **Note**: If you cannot find the `REFRESH-{uid}` cookie, it may not be set in your current browser session. You can either:
+       - Try logging out and logging back in to ProtonVPN
+       - Skip this token (the script will work without it, but tokens will expire faster)
+       - Check the **Application** tab → **Cookies** in browser DevTools for a complete list
    
    - **SESSION_ID**: From the Cookie header, find `Session-Id={session_value}`. Copy the `{session_value}` part.
 
@@ -224,8 +232,10 @@ AUTH-abc123def456=eyJhbGciOiJIUzI1NiIs...; REFRESH-abc123def456=rt_xyz789abc...;
 Extract as follows:
 - `AUTH_PM_UID` = `abc123def456`
 - `AUTH_TOKEN` = `eyJhbGciOiJIUzI1NiIs...`
-- `REFRESH_TOKEN` = `rt_xyz789abc...`
+- `REFRESH_TOKEN` = `rt_xyz789abc...` (if present; see note below if missing)
 - `SESSION_ID` = `sess_123456789...`
+
+**Important**: If you don't see a `REFRESH-{uid}` cookie in your browser, you can still use the script by omitting the `REFRESH_TOKEN` secret. The script will work but will require more frequent manual token updates.
 
 #### Step 2: Create GitHub Fine-Grained Token
 
@@ -251,7 +261,7 @@ To allow the workflow to update secrets automatically:
 4. Add each of the following secrets:
    - `AUTH_PM_UID` = Your extracted UID
    - `AUTH_TOKEN` = Your extracted auth token
-   - `REFRESH_TOKEN` = Your extracted refresh token
+   - `REFRESH_TOKEN` = Your extracted refresh token (skip if not found in browser - see troubleshooting below)
    - `SESSION_ID` = Your extracted session ID
    - `GH_TOKEN` = Your GitHub fine-grained token
 
@@ -268,13 +278,21 @@ To allow the workflow to update secrets automatically:
 
 ### Important Notes
 
-- **Token Expiration**: The `AUTH_TOKEN` and `SESSION_ID` expire regularly. The workflow uses `REFRESH_TOKEN` to automatically obtain new tokens, so you don't need to manually update them.
-- **REFRESH_TOKEN Expiration**: If the `REFRESH_TOKEN` expires (typically after 180 days), you'll need to repeat Step 1 to obtain new tokens.
+- **Token Expiration**: The `AUTH_TOKEN` and `SESSION_ID` expire regularly. If you provide `REFRESH_TOKEN`, the workflow automatically obtains new tokens, so you don't need to manually update them. Without `REFRESH_TOKEN`, you'll need to manually extract and update `AUTH_TOKEN` and `SESSION_ID` every few hours/days.
+- **REFRESH_TOKEN Expiration**: If provided, the `REFRESH_TOKEN` typically expires after 180 days, at which point you'll need to repeat Step 1 to obtain new tokens.
+- **Working Without REFRESH_TOKEN**: The script can function without `REFRESH_TOKEN`, but you'll experience more frequent token expirations requiring manual intervention.
 - **Account Requirements**: You need an active ProtonVPN account. Free accounts work, but paid accounts have access to more servers.
 - **Security**: Never share your tokens publicly. They provide access to your ProtonVPN account.
 - **All Servers**: This setup will export IPs from ALL servers your account has access to. Free accounts see fewer servers than paid accounts.
 
 ### Troubleshooting
+
+**Issue: Cannot find REFRESH_TOKEN in browser**
+- Solution: The `REFRESH_TOKEN` cookie may not always be present depending on your login method and browser state. You can:
+  1. Try logging out completely from ProtonVPN and logging back in
+  2. Clear your browser cookies for `protonvpn.com` and log in again
+  3. Check the **Application** tab (Chrome) or **Storage** tab (Firefox) → **Cookies** for a complete cookie list
+  4. Use the script without `REFRESH_TOKEN` (simply don't set this secret) - it will work but require more frequent manual token updates
 
 **Issue: Workflow fails with "Failed to fetch data from ProtonVPN"**
 - Solution: Your tokens may have expired. Follow Step 1 again to get fresh tokens.
@@ -283,7 +301,7 @@ To allow the workflow to update secrets automatically:
 - Solution: Free accounts have limited server access. Upgrade to a paid plan to see all servers.
 
 **Issue: "Failed to refresh authentication tokens"**
-- Solution: Your `REFRESH_TOKEN` may be invalid or expired. Extract fresh tokens from the browser.
+- Solution: Your `REFRESH_TOKEN` may be invalid or expired. Either extract a fresh token from the browser, or remove the `REFRESH_TOKEN` secret and use the script without automatic token refresh.
 
 **Issue: Can't find the Cookie header**
 - Solution: Make sure you're logged in and looking at requests to `account.protonvpn.com`. Try navigating to different pages in the ProtonVPN dashboard to trigger API calls.

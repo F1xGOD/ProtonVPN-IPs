@@ -38,8 +38,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          gh secret set -f .env -R $GITHUB_REPOSITORY
-          echo "Successfully updated authentication secrets"
+          if [ -f .env ]; then
+            gh secret set -f .env -R $GITHUB_REPOSITORY
+            echo "Successfully updated authentication secrets"
+          else
+            echo "No token refresh occurred - .env file not created"
+            echo "Tokens were used directly without refresh"
+          fi
 
       - name: Run Get ProtonVPN Entry IPs
         run: python entry_ips.py
