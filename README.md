@@ -160,6 +160,134 @@ For GitHub Actions to work properly, set the following repository secrets:
 
 The workflow automatically refreshes tokens when needed and updates repository secrets accordingly.
 
+### How to Obtain Authentication Secrets
+
+To export ALL ProtonVPN server IPs, you need to extract authentication tokens from your ProtonVPN account. Follow these steps:
+
+#### Quick Reference Summary
+
+| Secret | Source | Where to Find | Required |
+|--------|--------|---------------|----------|
+| `AUTH_PM_UID` | ProtonVPN Browser Session | Extract from cookie name `AUTH-{uid}` or `x-pm-uid` header | ✅ Yes |
+| `AUTH_TOKEN` | ProtonVPN Browser Session | Cookie value for `AUTH-{uid}` | ✅ Yes |
+| `REFRESH_TOKEN` | ProtonVPN Browser Session | Cookie value for `REFRESH-{uid}` | ✅ Yes |
+| `SESSION_ID` | ProtonVPN Browser Session | Cookie value for `Session-Id` | ✅ Yes |
+| `GH_TOKEN` | GitHub Settings | Personal Access Token (Fine-grained) | ✅ Yes |
+
+#### Step 1: Get ProtonVPN Authentication Tokens
+
+1. **Open Your Browser**: Use a browser with developer tools (Chrome, Firefox, Edge, etc.)
+
+2. **Open Developer Tools**: 
+   - Press `F12` or `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (Mac)
+   - Go to the **Network** tab
+
+3. **Log in to ProtonVPN**:
+   - Navigate to [account.protonvpn.com](https://account.protonvpn.com)
+   - Log in with your ProtonVPN credentials
+   - Make sure you have an active ProtonVPN subscription (Free or Paid)
+
+4. **Capture the API Request**:
+   - In the Network tab, filter by `XHR` or `Fetch`
+   - Look for a request to `logicals` or any request to `account.protonvpn.com/api/`
+   - If you don't see any requests, refresh the page or navigate to the VPN Settings section
+
+5. **Extract the Cookies**:
+   - Click on any API request to `account.protonvpn.com`
+   - Go to the **Headers** section
+   - Scroll down to **Request Headers**
+   - Find the `Cookie` header and copy its value
+   
+6. **Parse the Cookie Values**:
+   
+   The Cookie header contains several values. Extract these:
+   
+   - **AUTH_PM_UID**: Look for `x-pm-uid` in the request headers, OR extract the UID from the cookie name `AUTH-{uid}`. For example, if you see `AUTH-abc123def456`, then `AUTH_PM_UID=abc123def456`
+   
+   - **AUTH_TOKEN**: From the Cookie header, find `AUTH-{uid}={token_value}`. Copy the `{token_value}` part. For example:
+     ```
+     AUTH-abc123def456=eyJhbGc...rest_of_token
+     ```
+     Your `AUTH_TOKEN` is `eyJhbGc...rest_of_token`
+   
+   - **REFRESH_TOKEN**: From the Cookie header, find `REFRESH-{uid}={refresh_token_value}`. Copy the `{refresh_token_value}` part.
+   
+   - **SESSION_ID**: From the Cookie header, find `Session-Id={session_value}`. Copy the `{session_value}` part.
+
+#### Example Cookie Header Breakdown
+
+If your Cookie header looks like this:
+```
+AUTH-abc123def456=eyJhbGciOiJIUzI1NiIs...; REFRESH-abc123def456=rt_xyz789abc...; Session-Id=sess_123456789...
+```
+
+Extract as follows:
+- `AUTH_PM_UID` = `abc123def456`
+- `AUTH_TOKEN` = `eyJhbGciOiJIUzI1NiIs...`
+- `REFRESH_TOKEN` = `rt_xyz789abc...`
+- `SESSION_ID` = `sess_123456789...`
+
+#### Step 2: Create GitHub Fine-Grained Token
+
+To allow the workflow to update secrets automatically:
+
+1. Go to **GitHub Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**
+2. Click **Generate new token**
+3. Configure the token:
+   - **Token name**: `ProtonVPN-IPs-Secrets-Updater`
+   - **Expiration**: Choose your preferred duration (90 days recommended)
+   - **Repository access**: Select "Only select repositories" and choose your fork
+   - **Permissions**:
+     - **Repository permissions**:
+       - `Contents`: Read and Write
+       - `Secrets`: Read and Write
+4. Click **Generate token** and copy the token value
+
+#### Step 3: Set GitHub Repository Secrets
+
+1. Go to your repository on GitHub
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Add each of the following secrets:
+   - `AUTH_PM_UID` = Your extracted UID
+   - `AUTH_TOKEN` = Your extracted auth token
+   - `REFRESH_TOKEN` = Your extracted refresh token
+   - `SESSION_ID` = Your extracted session ID
+   - `GH_TOKEN` = Your GitHub fine-grained token
+
+#### Step 4: Test the Workflow
+
+1. Go to **Actions** tab in your repository
+2. Select the **ProtonVPN IP Scraper** workflow
+3. Click **Run workflow** → **Run workflow**
+4. Wait for the workflow to complete
+5. Check the results:
+   - `protonvpn_ips.json` - All exit IPs
+   - `protonvpn_entry_ips.json` - All entry IPs
+   - `protonvpn_logicals.json` - Complete server data
+
+### Important Notes
+
+- **Token Expiration**: The `AUTH_TOKEN` and `SESSION_ID` expire regularly. The workflow uses `REFRESH_TOKEN` to automatically obtain new tokens, so you don't need to manually update them.
+- **REFRESH_TOKEN Expiration**: If the `REFRESH_TOKEN` expires (typically after 180 days), you'll need to repeat Step 1 to obtain new tokens.
+- **Account Requirements**: You need an active ProtonVPN account. Free accounts work, but paid accounts have access to more servers.
+- **Security**: Never share your tokens publicly. They provide access to your ProtonVPN account.
+- **All Servers**: This setup will export IPs from ALL servers your account has access to. Free accounts see fewer servers than paid accounts.
+
+### Troubleshooting
+
+**Issue: Workflow fails with "Failed to fetch data from ProtonVPN"**
+- Solution: Your tokens may have expired. Follow Step 1 again to get fresh tokens.
+
+**Issue: Only getting a few IPs**
+- Solution: Free accounts have limited server access. Upgrade to a paid plan to see all servers.
+
+**Issue: "Failed to refresh authentication tokens"**
+- Solution: Your `REFRESH_TOKEN` may be invalid or expired. Extract fresh tokens from the browser.
+
+**Issue: Can't find the Cookie header**
+- Solution: Make sure you're logged in and looking at requests to `account.protonvpn.com`. Try navigating to different pages in the ProtonVPN dashboard to trigger API calls.
+
 ## 🔬 Technical Implementation
 
 ### Exit IP Discovery (`main.py`)
