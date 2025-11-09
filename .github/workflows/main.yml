@@ -34,12 +34,12 @@ jobs:
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
           SESSION_ID: ${{ secrets.SESSION_ID }}
 
-      - name: Update GitHub Secrets
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          gh secret set -f .env -R $GITHUB_REPOSITORY
-          echo "Successfully updated authentication secrets"
+      # - name: Update GitHub Secrets
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      #   run: |
+      #     gh secret set -f .env -R $GITHUB_REPOSITORY
+      #     echo "Successfully updated authentication secrets"
 
       - name: Run Get ProtonVPN Entry IPs
         run: python entry_ips.py
